@@ -7,12 +7,18 @@
 //
 
 import UIKit
+import AFNetworking
 
-class PhotosViewController: UIViewController {
+class PhotosViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
   var mediaData:NSDictionary?
 
+    @IBOutlet weak var mainTableView: UITableView!
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        mainTableView.delegate = self
+        mainTableView.dataSource = self
+        
         // Do any additional setup after loading the view, typically from a nib.
       let clientId = "e05c462ebd86446ea48a5af73769b602"
       let url = NSURL(string:"https://api.instagram.com/v1/media/popular?client_id=\(clientId)")
@@ -30,6 +36,7 @@ class PhotosViewController: UIViewController {
               data, options:[]) as? NSDictionary {
                 self.mediaData = responseDictionary
                 NSLog("response: \(responseDictionary)")
+                self.mainTableView.reloadData()
             }
           }
       });
@@ -41,6 +48,23 @@ class PhotosViewController: UIViewController {
         // Dispose of any resources that can be recreated.
     }
 
+    func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        if let data = mediaData {
+            return (data["data"]?.count)!
+        }
+        return 0
+    }
+    
+    func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCellWithIdentifier("PhotoCell", forIndexPath: indexPath) as! PhotoCellController
+        
+        let photoUrl = mediaData!["data"]?[indexPath.row]["images"]!!["standard_resolution"]!!["url"] as! String
+        
+        cell.photoView.setImageWithURL(NSURL(string: photoUrl)!)
+        
+        
+        return cell
+    }
 
 }
 
