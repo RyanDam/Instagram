@@ -9,9 +9,12 @@
 import UIKit
 import AFNetworking
 
-class PhotosViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
+
+class PhotosViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UIScrollViewDelegate {
   var mediaData:NSDictionary?
-  
+  var isMoreDataLoading = false
+    
+    
   @IBOutlet weak var mainTableView: UITableView!
   override func viewDidLoad() {
     super.viewDidLoad()
@@ -135,8 +138,6 @@ class PhotosViewController: UIViewController, UITableViewDataSource, UITableView
     usernameLabel.text = mediaData!["data"]?[section]["user"]!!["username"] as! String
     headerView.addSubview(usernameLabel)
     
-    
-    
     return headerView
   }
   
@@ -144,6 +145,71 @@ class PhotosViewController: UIViewController, UITableViewDataSource, UITableView
     return CGFloat(50)
   }
 
+    
+    func scrollViewDidScroll(scrollView: UIScrollView) {
+        if (!isMoreDataLoading) {
+            // Calculate the position of one screen length before the bottom of the results
+            let scrollViewContentHeight = mainTableView.contentSize.height
+            let scrollOffsetThreshold = scrollViewContentHeight - mainTableView.bounds.size.height
+            
+            // When the user has scrolled past the threshold, start requesting
+            if(scrollView.contentOffset.y > scrollOffsetThreshold && mainTableView.dragging) {
+                isMoreDataLoading = true
+                
+                loadMoreData()
+            }
+        }
+    }
+    
+    
+    func loadMoreData() {
+        
+        let tableFooterView: UIView = UIView(frame: CGRectMake(0, 0, 320, 50))
+        let loadingView: UIActivityIndicatorView = UIActivityIndicatorView(activityIndicatorStyle: .Gray)
+        loadingView.startAnimating()
+        loadingView.center = tableFooterView.center
+        tableFooterView.addSubview(loadingView)
+        self.mainTableView.tableFooterView = tableFooterView
+        
+        let clientId = "e05c462ebd86446ea48a5af73769b602"
+        let url = NSURL(string:"https://api.instagram.com/v1/media/popular?client_id=\(clientId)")
+        let request = NSURLRequest(URL: url!)
+        
+        // Configure session so that completion handler is executed on main UI thread
+        let session = NSURLSession(
+            configuration: NSURLSessionConfiguration.defaultSessionConfiguration(),
+            delegate:nil,
+            delegateQueue:NSOperationQueue.mainQueue()
+        )
+        
+        let task : NSURLSessionDataTask = session.dataTaskWithRequest(request,
+            completionHandler: { (data, response, error) in
+                
+                // Update flag
+                self.isMoreDataLoading = false
+                
+                if let data = data {
+                    if let responseDictionary = try! NSJSONSerialization.JSONObjectWithData(
+                        data, options:[]) as? NSDictionary {
+                            
+                            let temp2 = NSMutableDictionary()
+                            
+                            temp2.setValuesForKeysWithDictionary(self.mediaData as! [String : AnyObject])
+                            
+                            temp2.setValuesForKeysWithDictionary(responseDictionary as! [String : AnyObject])
+                    
+                            self.mediaData = temp2
+                            
+                    }
+                }
+                // ... Use the new data to update the data source ...
+                
+                // Reload the tableView now that there is new data
+                self.mainTableView.reloadData()
+                loadingView.stopAnimating()
+        });
+        task.resume()
+    }
   
 }
 
